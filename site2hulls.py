@@ -104,11 +104,17 @@ def read_workbook():
 
     # build dictionary of hullserial to row
     hulls = {}
-    count = 0
+    nulls = 0
+
     for rx in range(sh.nrows):
-        if count > 0 :
-          hulls[sh.cell_value(rowx=rx, colx=0)] = rx
-        count = count + 1
+        hull = sh.cell_value(rowx=rx, colx=0)
+        if (hull[:3] != 'NRB'):
+            nulls += 1
+            if nulls > 6:
+                break
+            else:
+                continue
+        hulls[hull] = rx
 
     return book, hulls, sh, wb, ws
 
@@ -137,9 +143,9 @@ def process_sheet(oprs, hulls, sh, ws):
     date_font_size_style.num_format_str = 'mm/dd/yyyy'
     changed = 0
 
-    output = "-----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------\n"
-    output += "| Hull           | Lastname        | Firstname  | Phone                | Mailing                                            | Street                                             | Purchased  |\n"
-    output += "-----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------\n"
+    output = "--------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------\n"
+    output += "| Hull        | Lastname        | Firstname  | Phone                | Mailing                                            | Street                                             | Purchased  |\n"
+    output += "--------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------\n"
 
     pp = pprint.PrettyPrinter(indent=4)
 
@@ -219,7 +225,7 @@ def main(debug, verbose):
         oprs = fetch_oprs()
         book, hulls, sh, wb, ws = read_workbook()
         output, changed = process_sheet(oprs, hulls, sh, ws)
-        if (changed):
+        if (changed and not dbg):
             wb.save(xlsfile)
             mail_results('OPR to Warranty Spreadsheet Update', '<pre>' + output + '</pre>')
     except OSError:
