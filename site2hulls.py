@@ -211,7 +211,7 @@ def main(debug, verbose):
         bundle_dir = os.path.dirname(os.path.abspath(__file__))
 
     # load environmental variables
-    load_dotenv(bundle_dir + "/.env")
+    load_dotenv(bundle_dir + "/.env-local")
 
     xlsfile = os.getenv('XLSFILE')
 
