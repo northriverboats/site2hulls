@@ -10,6 +10,7 @@ import re
 import sys
 import os
 import click
+from hashlib import md5
 from xlutils.copy import copy
 from titlecase import titlecase
 from emailer import *
@@ -143,15 +144,36 @@ def process_sheet(oprs, hulls, sh, ws):
     date_font_size_style.num_format_str = 'mm/dd/yyyy'
     changed = 0
 
-    output = "--------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------\n"
-    output += "| Hull        | Lastname        | Firstname  | Phone                | Mailing                                            | Street                                             | Purchased  |\n"
-    output += "--------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------\n"
+    output = "---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------\n"
+    output += "| Hull         | Lastname        | Firstname  | Phone                | Mailing                                            | Street                                             | Purchased  |\n"
+    output += "---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------\n"
 
     pp = pprint.PrettyPrinter(indent=4)
 
-    for opr in oprs:
-        rx = hulls.get(opr.get('hull_serial_number')[:3] + opr.get('hull_serial_number')[4:9] + opr.get('hull_serial_number')[10:],0)
+    hull_to_hulls = {d['hull_serial_number'][:3]+d['hull_serial_number'][4:9]+d['hull_serial_number'][10:]:c  for c, d in enumerate(oprs)}
+
+    for num in range(1, len(hull_to_hulls) + 1):
+        hull = sh.cell_value(num, 0)
+        index = hull_to_hulls.get(hull, 0)
+        if index == 0:
+            continue
+        opr = oprs[index]
+        # for count, opr in enumerate(oprs):
+        # raw = opr.get('hull_serial_number')
+        # hull = raw[:3] + raw[4:9] + raw[10:]
+        rx = hulls.get(hull, 0)
         if (rx):
+            debug(2,  "{:4d} {:12.12} {:4d}".format(num, hull, rx))
+        else:
+            debug(2, "{:4d} {:12.12} Skipping".format(num, hull))
+        if (rx):
+            if (not sh.cell_value(rx,17)):  # genereate PIN if needed
+                changed += 1
+                pin = "{:04.0f}".format(int(md5(hull.encode()).hexdigest()[:9],16)%10000)
+                ws.write(rx,  17, pin, font_size_style)
+                output1 = "| %-12s | %-15s | %-10s | %-20s | %-50s | %-50s | %-10s |\n" % (hull,  "", "", "", "", "", pin)
+                debug(1, output1.replace('\n',''))
+                output += output1
             if (not sh.cell_value(rx,1)):
                 changed += 1
                 homephone = str(opr.get('phone_home','')).upper()
@@ -196,7 +218,7 @@ def mail_results(subject, body):
     m.setSubject(subject)
     m.setTextBody("You should not see this text in a MIME aware reader")
     m.setHtmlBody(body)
-    m.send()
+    # m.send()
 
 
 
