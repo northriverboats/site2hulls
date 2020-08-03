@@ -1,5 +1,4 @@
 #!/usr/bin/env python3
-
 import pprint
 from xlrd import open_workbook, XLRDError, xldate_as_tuple
 import xlwt
@@ -109,6 +108,7 @@ def read_workbook():
 
     for rx in range(sh.nrows):
         hull = sh.cell_value(rowx=rx, colx=0)
+
         if (hull[:3] != 'NRB'):
             nulls += 1
             if nulls > 6:
@@ -138,9 +138,10 @@ def fetch_oprs():
 
     return oprs
 
+
 def process_sheet(oprs, hulls, sh, ws):
-    font_size_style = xlwt.easyxf('font: name Garamond, bold off, height 240;')
-    date_font_size_style = xlwt.easyxf('font: name Garamond, bold off, height 240;')
+    font_size_style = xlwt.easyxf('font: name Garmond, bold off, height 240;')
+    date_font_size_style = xlwt.easyxf('font: name Garmond, bold off, height 240;')
     date_font_size_style.num_format_str = 'mm/dd/yyyy'
     changed = 0
 
@@ -150,30 +151,9 @@ def process_sheet(oprs, hulls, sh, ws):
 
     pp = pprint.PrettyPrinter(indent=4)
 
-    hull_to_hulls = {d['hull_serial_number'][:3]+d['hull_serial_number'][4:9]+d['hull_serial_number'][10:]:c  for c, d in enumerate(oprs)}
-
-    for num in range(1, len(hull_to_hulls) + 1):
-        hull = sh.cell_value(num, 0)
-        index = hull_to_hulls.get(hull, 0)
-        if index == 0:
-            continue
-        opr = oprs[index]
-        # for count, opr in enumerate(oprs):
-        # raw = opr.get('hull_serial_number')
-        # hull = raw[:3] + raw[4:9] + raw[10:]
-        rx = hulls.get(hull, 0)
+    for opr in oprs:
+        rx = hulls.get(opr.get('hull_serial_number')[:3] + opr.get('hull_serial_number')[4:9] + opr.get('hull_serial_number')[10:],0)
         if (rx):
-            debug(2,  "{:4d} {:12.12} {:4d}".format(num, hull, rx))
-        else:
-            debug(2, "{:4d} {:12.12} Skipping".format(num, hull))
-        if (rx):
-            if (not sh.cell_value(rx,17)):  # genereate PIN if needed
-                changed += 1
-                pin = "{:04.0f}".format(int(md5(hull.encode()).hexdigest()[:9],16)%10000)
-                ws.write(rx,  17, pin, font_size_style)
-                output1 = "| %-12s | %-15s | %-10s | %-20s | %-50s | %-50s | %-10s |\n" % (hull,  "", "", "", "", "", pin)
-                debug(1, output1.replace('\n',''))
-                output += output1
             if (not sh.cell_value(rx,1)):
                 changed += 1
                 homephone = str(opr.get('phone_home','')).upper()
@@ -182,7 +162,6 @@ def process_sheet(oprs, hulls, sh, ws):
                     homephone = ''
                 if (workphone == 'NA' or workphone == 'N/A' or workphone == 'NONE'):
                     workphone = ''
-
 
                 ws.write(rx,  1, titlecase(opr.get('last_name','')), font_size_style)
                 ws.write(rx,  2, titlecase(opr.get('first_name','')), font_size_style)
@@ -197,13 +176,23 @@ def process_sheet(oprs, hulls, sh, ws):
                 ws.write(rx, 11, opr.get('street_zip').upper(), font_size_style)
                 ws.write(rx, 12, opr.get('date_purchased','01/01/01'), date_font_size_style )
 
-                output1 = "| %-12s | %-15s | %-10s | %-20s | %-50s | %-50s | %-10s |\n" % (opr.get('hull_serial_number',''), \
-                  titlecase(opr.get('last_name',''))[:15], titlecase(opr.get('first_name',''))[:10], (workphone, homephone)[bool(homephone)][:20],  \
-                  titlecase(opr.get('mailing_address','') + ', ' + opr.get('mailing_city','')) + ', ' + states.get(opr.get('mailing_state',''),'') + ', ' +  opr.get('mailing_zip').upper()  , \
-                  titlecase(opr.get('street_address','') + ', ' + opr.get('street_city','')) + ', ' + states.get(opr.get('street_state',''),'') + ', ' +  opr.get('mailing_zip').upper()  , \
-                  opr.get('date_purchased','01/01/01') )
+                output1 = "| %-12s | %-15s | %-10s | %-20s | %-50s | %-50s | %-10s |\n" % (
+                    opr.get('hull_serial_number',''),
+                    titlecase(opr.get('last_name',''))[:15],
+                    titlecase(opr.get('first_name',''))[:10],
+                    (workphone, homephone)[bool(homephone)][:20],
+                    titlecase(
+                        opr.get('mailing_address','') + ', ' + opr.get('mailing_city','')
+                    ) + ', ' + states.get(opr.get('mailing_state',''),'') + ', ' + opr.get('mailing_zip').upper(),
+                    titlecase(
+                        opr.get('street_address','') + ', ' + opr.get('street_city','')
+                    ) + ', ' + states.get(opr.get('street_state',''),'') + ', ' + opr.get('street_zip').upper(),
+                    opr.get('date_purchased','01/01/01')
+                )
                 debug(1, output1.replace('\n',''))
                 output += output1
+
+
     return output, changed
 
 def mail_results(subject, body):
@@ -260,9 +249,6 @@ def main(debug, verbose):
             'OPR to Warranty Spreadsheet Processing Error',
             '<p>Spreadsheet can not be updated due to script error:<br />\n' + str(e) + '</p>'
         )
-
-
-
 
 
 if __name__ == "__main__":
