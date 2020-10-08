@@ -139,7 +139,11 @@ def fetch_oprs():
     return oprs
 
 
-def process_sheet(oprs, hulls, sh, ws):
+def process_sheet(data, hulls, col, sh, ws):
+    """
+    For logic see gist:
+        https://gist.github.com/northriverboats/bd05796844dee5ecdb493880b5e5e01d
+    """
     font_size_style = xlwt.easyxf('font: name Garmond, bold off, height 240;')
     date_font_size_style = xlwt.easyxf('font: name Garmond, bold off, height 240;')
     date_font_size_style.num_format_str = 'mm/dd/yyyy'
@@ -151,43 +155,49 @@ def process_sheet(oprs, hulls, sh, ws):
 
     pp = pprint.PrettyPrinter(indent=4)
 
-    for opr in oprs:
-        rx = hulls.get(opr.get('hull_serial_number')[:3] + opr.get('hull_serial_number')[4:9] + opr.get('hull_serial_number')[10:],0)
+    truth_table = [True, False, False, False, True, False, True, False ]
+
+    for datum in data:
+        rx = hulls.get(datum.get('hull_serial_number')[:3] + datum.get('hull_serial_number')[4:9] + datum.get('hull_serial_number')[10:],0)
         if (rx):
-            if (not sh.cell_value(rx,1)):
+            opr_flag = sh.cell_value(rx,18) == 'X' if  2 else 0
+            css_flag = sh.cell_value(rx,19) == 'X' if 1 else 0
+            flag = (col * 4) + opr_flag + css_flag
+            if (not sh.cell_value(rx, 18 + col)):
                 changed += 1
-                homephone = str(opr.get('phone_home','')).upper()
-                workphone = str(opr.get('phone_work','')).upper()
+                homephone = str(datum.get('phone_home','')).upper()
+                workphone = str(datum.get('phone_work','')).upper()
                 if (homephone == 'NA' or homephone == 'N/A' or homephone == 'NONE'):
                     homephone = ''
                 if (workphone == 'NA' or workphone == 'N/A' or workphone == 'NONE'):
                     workphone = ''
 
-                ws.write(rx,  1, titlecase(opr.get('last_name','')), font_size_style)
-                ws.write(rx,  2, titlecase(opr.get('first_name','')), font_size_style)
+                ws.write(rx,  1, titlecase(datum.get('last_name','')), font_size_style)
+                ws.write(rx,  2, titlecase(datum.get('first_name','')), font_size_style)
                 ws.write(rx,  3, (workphone, homephone)[bool(homephone)], font_size_style)
-                ws.write(rx,  4, titlecase(opr.get('mailing_address','')), font_size_style)
-                ws.write(rx,  5, titlecase(opr.get('mailing_city','')), font_size_style)
-                ws.write(rx,  6, states.get(opr.get('mailing_state',''),''), font_size_style)
-                ws.write(rx,  7, opr.get('mailing_zip').upper(), font_size_style)
-                ws.write(rx,  8, titlecase(opr.get('street_address','')), font_size_style)
-                ws.write(rx,  9, titlecase(opr.get('street_city','')), font_size_style)
-                ws.write(rx, 10, states.get(opr.get('street_state',''),''), font_size_style)
-                ws.write(rx, 11, opr.get('street_zip').upper(), font_size_style)
-                ws.write(rx, 12, opr.get('date_purchased','01/01/01'), date_font_size_style )
+                ws.write(rx,  4, titlecase(datum.get('mailing_address','')), font_size_style)
+                ws.write(rx,  5, titlecase(datum.get('mailing_city','')), font_size_style)
+                ws.write(rx,  6, states.get(datum.get('mailing_state',''),''), font_size_style)
+                ws.write(rx,  7, datum.get('mailing_zip').upper(), font_size_style)
+                ws.write(rx,  8, titlecase(datum.get('street_address','')), font_size_style)
+                ws.write(rx,  9, titlecase(datum.get('street_city','')), font_size_style)
+                ws.write(rx, 10, states.get(datum.get('street_state',''),''), font_size_style)
+                ws.write(rx, 11, datum.get('street_zip').upper(), font_size_style)
+                ws.write(rx, 12, datum.get('date_purchased','01/01/01'), date_font_size_style )
+                ws.write(rx, 18 + col, 'X', font_size_style)
 
-                output1 = "| %-12s | %-15s | %-10s | %-20s | %-50s | %-50s | %-10s |\n" % (
-                    opr.get('hull_serial_number',''),
-                    titlecase(opr.get('last_name',''))[:15],
-                    titlecase(opr.get('first_name',''))[:10],
+                output1 = "| %-12s | %-15s | %-10s | %-20s | %-50s | %-50s | %-10s | %s\n" % (
+                    datum.get('hull_serial_number',''),
+                    titlecase(datum.get('last_name',''))[:15],
+                    titlecase(datum.get('first_name',''))[:10],
                     (workphone, homephone)[bool(homephone)][:20],
                     titlecase(
-                        opr.get('mailing_address','') + ', ' + opr.get('mailing_city','')
-                    ) + ', ' + states.get(opr.get('mailing_state',''),'') + ', ' + opr.get('mailing_zip').upper(),
+                        datum.get('mailing_address','') + ', ' + datum.get('mailing_city','')
+                    ) + ', ' + states.get(datum.get('mailing_state',''),'') + ', ' + datum.get('mailing_zip').upper(),
                     titlecase(
-                        opr.get('street_address','') + ', ' + opr.get('street_city','')
-                    ) + ', ' + states.get(opr.get('street_state',''),'') + ', ' + opr.get('street_zip').upper(),
-                    opr.get('date_purchased','01/01/01')
+                        datum.get('street_address','') + ', ' + datum.get('street_city','')
+                    ) + ', ' + states.get(datum.get('street_state',''),'') + ', ' + datum.get('street_zip').upper(),
+                    datum.get('date_purchased','01/01/01'), rx
                 )
                 debug(1, output1.replace('\n',''))
                 output += output1
@@ -235,7 +245,13 @@ def main(debug, verbose):
     try:
         oprs = fetch_oprs()
         book, hulls, sh, wb, ws = read_workbook()
-        output, changed = process_sheet(oprs, hulls, sh, ws)
+        output1, changed = process_sheet(oprs, hulls, 0, sh, ws)
+        # output2, changed = process_sheet(css, hulls, 1, sh, ws)
+        output = "---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------\n"
+        output += "| Hull         | Lastname        | Firstname  | Phone                | Mailing                                            | Street                                             | Purchased  |\n"
+        output += "---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------\n"
+        output += output1 # + output2
+
         if (changed and not dbg):
             wb.save(xlsfile)
             mail_results('OPR to Warranty Spreadsheet Update', '<pre>' + output + '</pre>')
