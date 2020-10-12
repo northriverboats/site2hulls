@@ -257,20 +257,20 @@ def main(debug, verbose):
 
     xlsfile = os.getenv('XLSFILE')
 
-    # try:
-    oprs, csss = fetch_oprs_and_csss()
-    book, hulls, sh, wb, ws = read_workbook()
-    output_1, changed_1 = process_sheet(oprs, hulls, 0, sh, ws)
-    output_2, changed_2 = process_sheet(csss, hulls, 1, sh, ws)
-    output = "---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------\n"
-    output += "| Hull         | Lastname        | Firstname  | Phone                | Mailing                                            | Street                                             | Purchased  |\n"
-    output += "---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------\n"
-    output = output_1 + output_2
-    changed = changed_1 + changed_2
+    try:
+        oprs, csss = fetch_oprs_and_csss()
+        book, hulls, sh, wb, ws = read_workbook()
+        output_1, changed_1 = process_sheet(oprs, hulls, 0, sh, ws)
+        output_2, changed_2 = process_sheet(csss, hulls, 1, sh, ws)
+        output = "---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------\n"
+        output += "| Hull         | Lastname        | Firstname  | Phone                | Mailing                                            | Street                                             | Purchased  |\n"
+        output += "---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------\n"
+        output = output_1 + output_2
+        changed = changed_1 + changed_2
 
-    if (changed and not dbg):
-        wb.save(xlsfile)
-        mail_results('OPR to Warranty Spreadsheet Update', '<pre>' + output + '</pre>')
+        if (changed and not dbg):
+            wb.save(xlsfile)
+            mail_results('OPR to Warranty Spreadsheet Update', '<pre>' + output + '</pre>')
     except OSError:
         mail_results(
             'OPR to Warranty Spreadsheet is open',
