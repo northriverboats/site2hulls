@@ -174,7 +174,6 @@ def process_sheet(data, hulls, col, sh, ws):
             opr_flag = (0, 2)[sh.cell_value(rx,18) == 'X']
             css_flag = (0, 1)[sh.cell_value(rx,19) == 'X']
             flag = (col * 4) + opr_flag + css_flag
-            # print("{:14} {:1} {:1} -- {:1} {:1} {:1} {:1}  {}".format( datum.get('hull_serial_number'), opr_char, css_char, col*4, opr_flag, css_flag, flag, truth_table[flag] ))
             if flag == 1:
                 changed += 1
                 ws.write(rx, 18 + col, 'X', font_size_style)
@@ -262,7 +261,6 @@ def main(debug, verbose):
     oprs, csss = fetch_oprs_and_csss()
     book, hulls, sh, wb, ws = read_workbook()
     output_1, changed_1 = process_sheet(oprs, hulls, 0, sh, ws)
-    print("\n\n\n==================\n\n")
     output_2, changed_2 = process_sheet(csss, hulls, 1, sh, ws)
     output = "---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------\n"
     output += "| Hull         | Lastname        | Firstname  | Phone                | Mailing                                            | Street                                             | Purchased  |\n"
@@ -270,12 +268,9 @@ def main(debug, verbose):
     output = output_1 + output_2
     changed = changed_1 + changed_2
 
-    print(output)
-
     if (changed and not dbg):
         wb.save(xlsfile)
         mail_results('OPR to Warranty Spreadsheet Update', '<pre>' + output + '</pre>')
-    """
     except OSError:
         mail_results(
             'OPR to Warranty Spreadsheet is open',
@@ -286,7 +281,6 @@ def main(debug, verbose):
             'OPR to Warranty Spreadsheet Processing Error',
             '<p>Spreadsheet can not be updated due to script error:<br />\n' + str(e) + '</p>'
         )
-    """
 
 if __name__ == "__main__":
     main()
