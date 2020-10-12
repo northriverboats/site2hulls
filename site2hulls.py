@@ -120,23 +120,29 @@ def read_workbook():
     return book, hulls, sh, wb, ws
 
 
-def fetch_oprs():
+def fetch_oprs_and_csss():
     # connect to mysql on the server
     silent = dbg < 1
     forwarder = bgtunnel.open(ssh_user=os.getenv('SSH_USER'), ssh_address=os.getenv('SSH_HOST'), host_port=3306, bind_port=3308, silent=silent)
     conn= MySQLdb.connect(host='127.0.0.1', port=3308, user=os.getenv('DB_USER'), passwd=os.getenv('DB_PASS'), db=os.getenv('DB_NAME'),cursorclass=MySQLdb.cursors.DictCursor)
 
+    cursor = conn.cursor()
+
     # select all records from the OPR table
     sql = "SELECT * FROM wp_nrb_opr ORDER BY id"
-    cursor = conn.cursor()
     total = cursor.execute(sql) # not used
     oprs = cursor.fetchall()
+
+    # select all records from the CS table
+    sql = "SELECT * FROM wp_nrb_cs_survey ORDER BY id"
+    total = cursor.execute(sql) # not used
+    dris = cursor.fetchall()
 
     cursor.close()
     conn.close()
     forwarder.close()
 
-    return oprs
+    return oprs, dris
 
 
 def process_sheet(data, hulls, col, sh, ws):
@@ -149,21 +155,30 @@ def process_sheet(data, hulls, col, sh, ws):
     date_font_size_style.num_format_str = 'mm/dd/yyyy'
     changed = 0
 
-    output = "---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------\n"
+    output = "\n\n---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------\n"
     output += "| Hull         | Lastname        | Firstname  | Phone                | Mailing                                            | Street                                             | Purchased  |\n"
     output += "---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------\n"
 
     pp = pprint.PrettyPrinter(indent=4)
 
+    #               0      1      2      3      4     5      6     7
     truth_table = [True, False, False, False, True, False, True, False ]
 
     for datum in data:
         rx = hulls.get(datum.get('hull_serial_number')[:3] + datum.get('hull_serial_number')[4:9] + datum.get('hull_serial_number')[10:],0)
-        if (rx):
-            opr_flag = sh.cell_value(rx,18) == 'X' if  2 else 0
-            css_flag = sh.cell_value(rx,19) == 'X' if 1 else 0
+        if (rx):  # rx is row on sheet where datum's hull_serial_number shows up
+            opr_char = sh.cell_value(rx, 18)
+            css_char = sh.cell_value(rx, 19)
+            opr_type = str(type(opr_char))
+            css_type = str(type(css_char))
+            opr_flag = (0, 2)[sh.cell_value(rx,18) == 'X']
+            css_flag = (0, 1)[sh.cell_value(rx,19) == 'X']
             flag = (col * 4) + opr_flag + css_flag
-            if (not sh.cell_value(rx, 18 + col)):
+            # print("{:14} {:1} {:1} -- {:1} {:1} {:1} {:1}  {}".format( datum.get('hull_serial_number'), opr_char, css_char, col*4, opr_flag, css_flag, flag, truth_table[flag] ))
+            if flag == 1:
+                changed += 1
+                ws.write(rx, 18 + col, 'X', font_size_style)
+            if truth_table[flag]:
                 changed += 1
                 homephone = str(datum.get('phone_home','')).upper()
                 workphone = str(datum.get('phone_work','')).upper()
@@ -178,11 +193,12 @@ def process_sheet(data, hulls, col, sh, ws):
                 ws.write(rx,  4, titlecase(datum.get('mailing_address','')), font_size_style)
                 ws.write(rx,  5, titlecase(datum.get('mailing_city','')), font_size_style)
                 ws.write(rx,  6, states.get(datum.get('mailing_state',''),''), font_size_style)
-                ws.write(rx,  7, datum.get('mailing_zip').upper(), font_size_style)
-                ws.write(rx,  8, titlecase(datum.get('street_address','')), font_size_style)
-                ws.write(rx,  9, titlecase(datum.get('street_city','')), font_size_style)
-                ws.write(rx, 10, states.get(datum.get('street_state',''),''), font_size_style)
-                ws.write(rx, 11, datum.get('street_zip').upper(), font_size_style)
+                ws.write(rx,  7, datum.get('mailing_zip','').upper(), font_size_style)
+                if col == 0:
+                    ws.write(rx,  8, titlecase(datum.get('street_address','')), font_size_style)
+                    ws.write(rx,  9, titlecase(datum.get('street_city','')), font_size_style)
+                    ws.write(rx, 10, states.get(datum.get('street_state',''),''), font_size_style)
+                    ws.write(rx, 11, datum.get('street_zip','').upper(), font_size_style)
                 ws.write(rx, 12, datum.get('date_purchased','01/01/01'), date_font_size_style )
                 ws.write(rx, 18 + col, 'X', font_size_style)
 
@@ -193,10 +209,10 @@ def process_sheet(data, hulls, col, sh, ws):
                     (workphone, homephone)[bool(homephone)][:20],
                     titlecase(
                         datum.get('mailing_address','') + ', ' + datum.get('mailing_city','')
-                    ) + ', ' + states.get(datum.get('mailing_state',''),'') + ', ' + datum.get('mailing_zip').upper(),
+                    ) + ', ' + states.get(datum.get('mailing_state',''),'') + ', ' + datum.get('mailing_zip', '').upper(),
                     titlecase(
                         datum.get('street_address','') + ', ' + datum.get('street_city','')
-                    ) + ', ' + states.get(datum.get('street_state',''),'') + ', ' + datum.get('street_zip').upper(),
+                    ) + ', ' + states.get(datum.get('street_state',''),'') + ', ' + datum.get('street_zip', '').upper(),
                     datum.get('date_purchased','01/01/01'), rx
                 )
                 debug(1, output1.replace('\n',''))
@@ -242,19 +258,24 @@ def main(debug, verbose):
 
     xlsfile = os.getenv('XLSFILE')
 
-    try:
-        oprs = fetch_oprs()
-        book, hulls, sh, wb, ws = read_workbook()
-        output1, changed = process_sheet(oprs, hulls, 0, sh, ws)
-        # output2, changed = process_sheet(css, hulls, 1, sh, ws)
-        output = "---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------\n"
-        output += "| Hull         | Lastname        | Firstname  | Phone                | Mailing                                            | Street                                             | Purchased  |\n"
-        output += "---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------\n"
-        output += output1 # + output2
+    # try:
+    oprs, csss = fetch_oprs_and_csss()
+    book, hulls, sh, wb, ws = read_workbook()
+    output_1, changed_1 = process_sheet(oprs, hulls, 0, sh, ws)
+    print("\n\n\n==================\n\n")
+    output_2, changed_2 = process_sheet(csss, hulls, 1, sh, ws)
+    output = "---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------\n"
+    output += "| Hull         | Lastname        | Firstname  | Phone                | Mailing                                            | Street                                             | Purchased  |\n"
+    output += "---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------\n"
+    output = output_1 + output_2
+    changed = changed_1 + changed_2
 
-        if (changed and not dbg):
-            wb.save(xlsfile)
-            mail_results('OPR to Warranty Spreadsheet Update', '<pre>' + output + '</pre>')
+    print(output)
+
+    if (changed and not dbg):
+        wb.save(xlsfile)
+        mail_results('OPR to Warranty Spreadsheet Update', '<pre>' + output + '</pre>')
+    """
     except OSError:
         mail_results(
             'OPR to Warranty Spreadsheet is open',
@@ -265,7 +286,7 @@ def main(debug, verbose):
             'OPR to Warranty Spreadsheet Processing Error',
             '<p>Spreadsheet can not be updated due to script error:<br />\n' + str(e) + '</p>'
         )
-
+    """
 
 if __name__ == "__main__":
     main()
