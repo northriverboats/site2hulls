@@ -232,7 +232,7 @@ def mail_results(subject, body):
     m.setSubject(subject)
     m.setTextBody("You should not see this text in a MIME aware reader")
     m.setHtmlBody(body)
-    # m.send()
+    m.send()
 
 
 
