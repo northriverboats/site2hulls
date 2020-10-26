@@ -123,8 +123,22 @@ def read_workbook():
 def fetch_oprs_and_csss():
     # connect to mysql on the server
     silent = dbg < 1
-    forwarder = bgtunnel.open(ssh_user=os.getenv('SSH_USER'), ssh_address=os.getenv('SSH_HOST'), host_port=3306, bind_port=3308, silent=silent)
-    conn= MySQLdb.connect(host='127.0.0.1', port=3308, user=os.getenv('DB_USER'), passwd=os.getenv('DB_PASS'), db=os.getenv('DB_NAME'),cursorclass=MySQLdb.cursors.DictCursor)
+    forwarder = bgtunnel.open(
+        ssh_user=os.getenv('SSH_USER'),
+        ssh_address=os.getenv('SSH_HOST'),
+        ssh_port=os.getenv('SSH_PORT'),
+        host_port=3306,
+        bind_port=3308,
+        silent=silent
+    )
+    conn= MySQLdb.connect(
+        host='127.0.0.1',
+        port=3308,
+        user=os.getenv('DB_USER'),
+        passwd=os.getenv('DB_PASS'),
+        db=os.getenv('DB_NAME'),
+        cursorclass=MySQLdb.cursors.DictCursor
+    )
 
     cursor = conn.cursor()
 
@@ -167,16 +181,14 @@ def process_sheet(data, hulls, col, sh, ws):
     for datum in data:
         rx = hulls.get(datum.get('hull_serial_number')[:3] + datum.get('hull_serial_number')[4:9] + datum.get('hull_serial_number')[10:],0)
         if (rx):  # rx is row on sheet where datum's hull_serial_number shows up
-            opr_char = sh.cell_value(rx, 18)
-            css_char = sh.cell_value(rx, 19)
-            opr_type = str(type(opr_char))
-            css_type = str(type(css_char))
-            opr_flag = (0, 2)[sh.cell_value(rx,18) == 'X']
-            css_flag = (0, 1)[sh.cell_value(rx,19) == 'X']
+            opr_char = sh.cell_value(rx, 19)
+            css_char = sh.cell_value(rx, 20)
+            opr_flag = (0, 2)[opr_char != '']
+            css_flag = (0, 1)[css_char != '']
             flag = (col * 4) + opr_flag + css_flag
             if flag == 1:
                 changed += 1
-                ws.write(rx, 18 + col, 'X', font_size_style)
+                ws.write(rx, 19 + col, 'X', font_size_style)
             if truth_table[flag]:
                 changed += 1
                 homephone = str(datum.get('phone_home','')).upper()
@@ -198,8 +210,9 @@ def process_sheet(data, hulls, col, sh, ws):
                     ws.write(rx,  9, titlecase(datum.get('street_city','')), font_size_style)
                     ws.write(rx, 10, states.get(datum.get('street_state',''),''), font_size_style)
                     ws.write(rx, 11, datum.get('street_zip','').upper(), font_size_style)
-                ws.write(rx, 12, datum.get('date_purchased','01/01/01'), date_font_size_style )
-                ws.write(rx, 18 + col, 'X', font_size_style)
+                ws.write(rx, 12, datum.get('email_address', datum.get('email', '')), font_size_style)
+                ws.write(rx, 13, datum.get('date_purchased','01/01/01'), date_font_size_style )
+                ws.write(rx, 19 + col, 'X', font_size_style)
 
                 output1 = "| %-12s | %-15s | %-10s | %-20s | %-50s | %-50s | %-10s | %s\n" % (
                     datum.get('hull_serial_number',''),
