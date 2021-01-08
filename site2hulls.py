@@ -224,7 +224,7 @@ def process_sheet(data, hulls, col, sh, ws):
                     ws.write(rx, 10, states.get(datum.get('street_state',''),''), font_size_style)
                     ws.write(rx, 11, datum.get('street_zip','').upper(), font_size_style)
                 ws.write(rx, 12, datum.get('email_address', datum.get('email', '')), font_size_style)
-                ws.write(rx, 13, datum.get('date_purchased','01/01/01'), date_font_size_style )
+                ws.write(rx, 13, datum.get('date_delivered','01/01/01'), date_font_size_style )
                 ws.write(rx, 19 + col, 'X', font_size_style)
 
                 output1 = "| %-12s | %-15s | %-10s | %-20s | %-50s | %-50s | %-10s | %s\n" % (
@@ -238,7 +238,7 @@ def process_sheet(data, hulls, col, sh, ws):
                     titlecase(
                         datum.get('street_address','') + ', ' + datum.get('street_city','')
                     ) + ', ' + states.get(datum.get('street_state',''),'') + ', ' + datum.get('street_zip', '').upper(),
-                    datum.get('date_purchased','01/01/01'), rx
+                    datum.get('date_delivered','01/01/01'), rx
                 )
                 debug(1, output1.replace('\n',''))
                 output += output1
@@ -289,7 +289,7 @@ def main(debug, verbose):
         output_1, changed_1 = process_sheet(oprs, hulls, 0, sh, ws)
         output_2, changed_2 = process_sheet(csss, hulls, 1, sh, ws)
         output = "---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------\n"
-        output += "| Hull         | Lastname        | Firstname  | Phone                | Mailing                                            | Street                                             | Purchased  |\n"
+        output += "| Hull         | Lastname        | Firstname  | Phone                | Mailing                                            | Street                                             | Delivered  |\n"
         output += "---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------\n"
         output = output_1 + output_2
         changed = changed_1 + changed_2
