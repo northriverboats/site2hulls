@@ -16,6 +16,7 @@ from dotenv import load_dotenv
 xlsfile = ''
 dump_opr = False
 dump_dri = False
+verbosity = 0
 
 states = {
     'Alaska': 'AK',
@@ -96,9 +97,8 @@ Levels
 3 = very verbose outupt
 4 = show database dumps
 """
-dbg = 0
 def debug(level, text):
-    if dbg > (level -1):
+    if verbosity > (level -1):
         print(text)
 
 def read_workbook():
@@ -261,17 +261,16 @@ def mail_results(subject, body):
 
 
 @click.command()
-@click.option('--debug', '-d', is_flag=True, help='show debug output')
-@click.option('--verbose', '-v', default=1, type=int, help='verbosity level 0-4')
-@click.option('--dumpopr', default=False, is_flag=True, help='dump opr table')
-@click.option('--dumpdri', default=False, is_flag=True, help='dump dri table')
-def main(debug, verbose, dumpopr, dumpdri):
+@click.option('--verbose', '-v', default=0, type=int, help='verbosity level 0-4')
+@click.option('--nosave', is_flag=True, help='do not save spreadsheet')
+@click.option('--dumpopr', is_flag=True, help='dump opr table')
+@click.option('--dumpdri', is_flag=True, help='dump dri table')
+def main(nosave, verbose, dumpopr, dumpdri):
     global xlsfile
-    global dbg
+    global verbosity
     global dump_opr
     global dump_dri
-    if debug:
-        dbg = verbose
+    verbosity = verbose
     dump_opr = dumpopr
     dump_dri = dumpdri
 
@@ -288,7 +287,7 @@ def main(debug, verbose, dumpopr, dumpdri):
     xlsfile = os.getenv('XLSFILE')
 
     try:
-        silent = dbg < 1
+        silent = verbosity < 3 
         db = TunnelSQL(silent, cursor='DictCursor')
         oprs, csss = fetch_oprs_and_csss(db)
         book, hulls, sh, wb, ws = read_workbook()
@@ -300,7 +299,7 @@ def main(debug, verbose, dumpopr, dumpdri):
         output = output_1 + output_2
         changed = changed_1 + changed_2
 
-        if (changed and not dbg):
+        if (changed and not debug):
             wb.save(xlsfile)
             mail_results('OPR to Warranty Spreadsheet Update', '<pre>' + output + '</pre>')
     except OSError:
