@@ -2,9 +2,6 @@
 import pprint
 from xlrd import open_workbook, XLRDError, xldate_as_tuple
 import xlwt
-import bgtunnel
-import MySQLdb
-import MySQLdb.cursors
 import re
 import sys
 import os
@@ -13,6 +10,7 @@ from hashlib import md5
 from xlutils.copy import copy
 from titlecase import titlecase
 from emailer import *
+from mysqltunnel import TunnelSQL
 from dotenv import load_dotenv
 
 xlsfile = ''
@@ -94,6 +92,7 @@ Levels
 1 = minimal output
 2 = verbose outupt
 3 = very verbose outupt
+4 = show database dumps
 """
 dbg = 0
 def debug(level, text):
@@ -133,41 +132,29 @@ def read_workbook():
     return book, hulls, sh, wb, ws
 
 
-def fetch_oprs_and_csss():
-    # connect to mysql on the server
-    silent = dbg < 1
-    forwarder = bgtunnel.open(
-        ssh_user=os.getenv('SSH_USER'),
-        ssh_address=os.getenv('SSH_HOST'),
-        ssh_port=os.getenv('SSH_PORT'),
-        host_port=3306,
-        bind_port=3308,
-        silent=silent
-    )
-    conn= MySQLdb.connect(
-        host='127.0.0.1',
-        port=3308,
-        user=os.getenv('DB_USER'),
-        passwd=os.getenv('DB_PASS'),
-        db=os.getenv('DB_NAME'),
-        cursorclass=MySQLdb.cursors.DictCursor
-    )
-
-    cursor = conn.cursor()
-
+def fetch_oprs_and_csss(db):
     # select all records from the OPR table
     sql = "SELECT * FROM wp_nrb_opr ORDER BY id"
-    total = cursor.execute(sql) # not used
-    oprs = cursor.fetchall()
+    oprs = db.execute(sql)
 
     # select all records from the CS table
     sql = "SELECT * FROM wp_nrb_cs_survey ORDER BY id"
-    total = cursor.execute(sql) # not used
-    dris = cursor.fetchall()
+    dris = db.execute(sql)
 
-    cursor.close()
-    conn.close()
-    forwarder.close()
+    if dbg > 3:
+        print("OPRS [{}]".format(len(oprs)))
+        for opr in oprs:
+            print("  {:14.14}   {:20.20}   {:22.22} {}   {:20.20}   {:25.25} {:30.30}".format(
+                opr['hull_serial_number'],
+                opr['dealership'],
+                opr['model'],
+                opr['date_delivered'],
+                opr['first_name'],
+                opr['last_name'],
+                opr['agency'],
+            ))
+        print("\n\n\nDRIS [{}]".format(len(dris)))
+        # my_printer.pprint(dris)
 
     return oprs, dris
 
@@ -264,7 +251,7 @@ def mail_results(subject, body):
 
 @click.command()
 @click.option('--debug', '-d', is_flag=True, help='show debug output')
-@click.option('--verbose', '-v', default=1, type=int, help='verbosity level 0-3')
+@click.option('--verbose', '-v', default=1, type=int, help='verbosity level 0-4')
 def main(debug, verbose):
     global xlsfile
     global dbg
@@ -284,7 +271,9 @@ def main(debug, verbose):
     xlsfile = os.getenv('XLSFILE')
 
     try:
-        oprs, csss = fetch_oprs_and_csss()
+        silent = dbg < 1
+        db = TunnelSQL(silent, cursor='DictCursor')
+        oprs, csss = fetch_oprs_and_csss(db)
         book, hulls, sh, wb, ws = read_workbook()
         output_1, changed_1 = process_sheet(oprs, hulls, 0, sh, ws)
         output_2, changed_2 = process_sheet(csss, hulls, 1, sh, ws)
@@ -307,6 +296,8 @@ def main(debug, verbose):
             'OPR to Warranty Spreadsheet Processing Error',
             '<p>Spreadsheet can not be updated due to script error:<br />\n' + str(e) + '</p>'
         )
+    finally:
+        db.close()
 
 if __name__ == "__main__":
     main()
