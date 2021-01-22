@@ -14,6 +14,8 @@ from mysqltunnel import TunnelSQL
 from dotenv import load_dotenv
 
 xlsfile = ''
+dump_opr = False
+dump_dri = False
 
 states = {
     'Alaska': 'AK',
@@ -141,10 +143,10 @@ def fetch_oprs_and_csss(db):
     sql = "SELECT * FROM wp_nrb_cs_survey ORDER BY id"
     dris = db.execute(sql)
 
-    if dbg > 3:
+    if dump_opr:
         print("OPRS [{}]".format(len(oprs)))
         for opr in oprs:
-            print("  {:14.14}   {:20.20}   {:22.22} {}   {:20.20}   {:25.25} {:30.30}".format(
+            print("  opr  {:14.14}   {:20.20}   {:22.22} {}   {:20.20}   {:25.25} {:30.30}".format(
                 opr['hull_serial_number'],
                 opr['dealership'],
                 opr['model'],
@@ -153,8 +155,17 @@ def fetch_oprs_and_csss(db):
                 opr['last_name'],
                 opr['agency'],
             ))
-        print("\n\n\nDRIS [{}]".format(len(dris)))
-        # my_printer.pprint(dris)
+    if dump_dri:
+        if dump_opr:
+            print("\n\n\n")
+        print("DRIS [{}]".format(len(dris)))
+        for dri in dris:
+            print("  dri  {:14.14}   {:20.20}   {:22.22}   {}".format(
+                dri['hull_serial_number'],
+                dri['dealership'],
+                dri['model'],
+                dri['date_purchased'],
+            ))
 
     return oprs, dris
 
@@ -252,11 +263,17 @@ def mail_results(subject, body):
 @click.command()
 @click.option('--debug', '-d', is_flag=True, help='show debug output')
 @click.option('--verbose', '-v', default=1, type=int, help='verbosity level 0-4')
-def main(debug, verbose):
+@click.option('--dumpopr', default=False, is_flag=True, help='dump opr table')
+@click.option('--dumpdri', default=False, is_flag=True, help='dump dri table')
+def main(debug, verbose, dumpopr, dumpdri):
     global xlsfile
     global dbg
+    global dump_opr
+    global dump_dri
     if debug:
         dbg = verbose
+    dump_opr = dumpopr
+    dump_dri = dumpdri
 
     # set python environment
     if getattr(sys, 'frozen', False):
