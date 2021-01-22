@@ -1,7 +1,7 @@
-import MySQLdb
 import bgtunnel
 import os
 import sys
+from MySQLdb import connect, cursors
 from dotenv import load_dotenv
 
 load_dotenv('.env-local')
@@ -11,7 +11,8 @@ class TunnelSQL(object):
     cursor = False
     connected = False
 
-    def __init__(self, silent):
+    def __init__(self, silent, cursor='Cursor'):
+        self.cursorclass = eval('cursors.' + cursor)
         self.ssh_user=os.getenv('SSH_USER')
         self.ssh_address=os.getenv('SSH_HOST')
         self.ssh_port=os.getenv('SSH_PORT')
@@ -40,9 +41,10 @@ class TunnelSQL(object):
                   "MySQLdb.connect(host='{}',port='{}', user='{}', passwd='{}', db='{}')".format(
                   self.host, self.port, self.user, self.passwd, self.dbname)
             )
-        self.conn = MySQLdb.connect(host=self.host, port=self.port,
+        self.conn = connect(host=self.host, port=self.port,
                                     user=self.user, passwd=self.passwd,
-                                    db=self.dbname)
+                                    db=self.dbname,
+                                    cursorclass=self.cursorclass)
         self.connected = True
         if not self.silent:
             print(("Connection Failed", "Connected")[self.connected])
