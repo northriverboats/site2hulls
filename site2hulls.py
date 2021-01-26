@@ -185,9 +185,12 @@ def process_sheet(data, hulls, col, sh, ws):
     output += "---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------\n"
 
     pp = pprint.PrettyPrinter(indent=4)
-
-    #               0      1      2      3      4     5      6     7
-    truth_table = [True, False, False, False, True, False, True, False ]
+    # col 0/4 = opr/dri mode
+    # opr 0/2 = opr done
+    # css 0/1 = css done
+    #               0      1      2      3      4     5       6      7
+    # truth_table = [True, False, False, False, True, False,  True,  False ]  # CSS priority
+    truth_table = [True, True,  False, False, True, False, False, False ]   # OPR priority
 
     for datum in data:
         rx = hulls.get(datum.get('hull_serial_number')[:3] + datum.get('hull_serial_number')[4:9] + datum.get('hull_serial_number')[10:],0)
@@ -197,7 +200,8 @@ def process_sheet(data, hulls, col, sh, ws):
             opr_flag = (0, 2)[opr_char != '']
             css_flag = (0, 1)[css_char != '']
             flag = (col * 4) + opr_flag + css_flag
-            if flag == 1:
+            debug(3, '  Processing row: {:05d}  hull: {}  flag: {:03b}'.format(rx, datum.get('hull_serial_number'), flag))
+            if flag == 6:
                 changed += 1
                 ws.write(rx, 19 + col, 'X', font_size_style)
             if truth_table[flag]:
@@ -222,7 +226,7 @@ def process_sheet(data, hulls, col, sh, ws):
                     ws.write(rx, 10, states.get(datum.get('street_state',''),''), font_size_style)
                     ws.write(rx, 11, datum.get('street_zip','').upper(), font_size_style)
                 ws.write(rx, 12, datum.get('email_address', datum.get('email', '')), font_size_style)
-                ws.write(rx, 13, datum.get('date_delivered','01/01/01'), date_font_size_style )
+                ws.write(rx, 13, datum.get('date_delivered',''), date_font_size_style )
                 ws.write(rx, 19 + col, 'X', font_size_style)
 
                 output1 = "| %-12s | %-15s | %-10s | %-20s | %-50s | %-50s | %-10s | %s\n" % (
@@ -287,21 +291,28 @@ def main(nosave, verbose, dumpopr, dumpdri):
     xlsfile = os.getenv('XLSFILE')
 
     try:
-        silent = verbosity < 3 
+        silent = verbosity < 3
         db = TunnelSQL(silent, cursor='DictCursor')
         oprs, csss = fetch_oprs_and_csss(db)
         book, hulls, sh, wb, ws = read_workbook()
-        output_1, changed_1 = process_sheet(oprs, hulls, 0, sh, ws)
+        debug(3, 'CSS ===================================================')
         output_2, changed_2 = process_sheet(csss, hulls, 1, sh, ws)
+        debug(3, "changed: {}\n".format(changed_2))
+        debug(3, 'OPR ===================================================')
+        output_1, changed_1 = process_sheet(oprs, hulls, 0, sh, ws)
+        debug(3, "changed: {}\n".format(changed_1))
         output = "---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------\n"
         output += "| Hull         | Lastname        | Firstname  | Phone                | Mailing                                            | Street                                             | Delivered  |\n"
         output += "---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------\n"
         output = output_1 + output_2
         changed = changed_1 + changed_2
 
-        if (changed and not debug):
+        if (changed and not nosave):
             wb.save(xlsfile)
             mail_results('OPR to Warranty Spreadsheet Update', '<pre>' + output + '</pre>')
+            debug(3, output)
+        else:
+            debug(3, 'No changes File Not Saved')
     except OSError:
         mail_results(
             'OPR to Warranty Spreadsheet is open',
