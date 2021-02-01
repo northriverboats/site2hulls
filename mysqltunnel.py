@@ -12,7 +12,7 @@ class TunnelSQL(object):
     connected = False
 
     def __init__(self, silent, cursor='Cursor'):
-        self.cursorclass = eval('cursors.' + cursor)
+        self.cursorclass = getattr(cursors, cursor)
         self.ssh_user=os.getenv('SSH_USER')
         self.ssh_address=os.getenv('SSH_HOST')
         self.ssh_port=os.getenv('SSH_PORT')
