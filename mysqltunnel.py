@@ -15,9 +15,9 @@ class TunnelSQL(object):
         self.cursorclass = getattr(cursors, cursor)
         self.ssh_user=os.getenv('SSH_USER')
         self.ssh_address=os.getenv('SSH_HOST')
-        self.ssh_port=os.getenv('SSH_PORT')
-        self.host_port=os.getenv('SSH_HOST_PORT') or 3306
-        self.bind_port=os.getenv('SSH_BIND_PORT') or 3308
+        self.ssh_port=int(os.getenv('SSH_PORT')) or 22
+        self.host_port=int(os.getenv('SSH_HOST_PORT')) or 3306
+        self.bind_port=int(os.getenv('SSH_BIND_PORT')) or 3308
         self.silent=silent
 
         self.user = os.getenv('DB_USER')
@@ -92,4 +92,3 @@ class TunnelSQL(object):
 
     def insert_id(self):
         return self.conn.insert_id()
-
