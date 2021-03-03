@@ -16,14 +16,14 @@ class TunnelSQL(object):
         self.ssh_user=os.getenv('SSH_USER')
         self.ssh_address=os.getenv('SSH_HOST')
         self.ssh_port=int(os.getenv('SSH_PORT')) or 22
+        self.bind_port=int(os.getenv('SSH_BIND_PORT')) or 3306
         self.host_port=int(os.getenv('SSH_HOST_PORT')) or 3306
-        self.bind_port=int(os.getenv('SSH_BIND_PORT')) or 3308
         self.silent=silent
 
         self.user = os.getenv('DB_USER')
         self.passwd = os.getenv('DB_PASS')
         self.dbname = os.getenv('DB_NAME')
-        self.port = os.getenv('DB_PORT') or 3308
+        self.port = int(os.getenv('DB_PORT')) or 3308
         self.host = ('127.0.0.1', os.getenv('DB_HOST'))[self.ssh_address == None]
 
     def connect(self):
