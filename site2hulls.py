@@ -1,21 +1,19 @@
 #!/usr/bin/env python3
-import pprint
-from xlrd import open_workbook, XLRDError, xldate_as_tuple
+# import pprint
+from xlrd import open_workbook
 import xlwt
-import re
 import sys
 import os
 import click
-from hashlib import md5
 from xlutils.copy import copy
 from titlecase import titlecase
-from emailer import *
-from mysqltunnel import TunnelSQL
+from emailer.emailer import Email
+from mysql_tunnel.mysql_tunnel import TunnelSQL
 from dotenv import load_dotenv
 
 xlsfile = ''
 dump_opr = False
-dump_dri = False
+dump_css = False
 verbosity = 0
 
 states = {
@@ -89,32 +87,40 @@ states = {
     'Nunavut': 'NU',
 }
 
-"""
-Levels
-0 = no output
-1 = minimal output
-2 = verbose outupt
-3 = very verbose outupt
-4 = show database dumps
-"""
+
 def debug(level, text):
-    if verbosity > (level -1):
+    """
+    Levels
+    0 = no output
+    1 = minimal output
+    2 = verbose outupt
+    3 = very verbose outupt
+    4 = show database dumps
+    """
+    if verbosity > (level - 1):
         print(text)
 
+
 def read_workbook():
-    # Read boat/dealer/model from spreadsheet    use  book.release_resources() before saving
+    # Read boat/dealer/model from spreadsheet
+    # use book.release_resources() before saving
     book = open_workbook(xlsfile, formatting_info=True, on_demand=True)
 
-    # dont assume it is the first sheet, scan thru all sheets looking for 'DEALER'
+    # dont assume it is the first sheet
+    # scan thru all sheets looking for 'DEALER'
     sx = 0
-    for i in range(0,len(book.sheet_names())-1):
+    for i in range(0, len(book.sheet_names()) - 1):
         if (book.sheet_names()[i] == 'DEALER'):
             sx = i
 
-    sh = book.sheet_by_index(sx) # read-only copy    sh.cell(row,col).value sh.cell_value(row,col)
-    wb = copy(book)             # to write to file  wb.save('filename')
-    ws = wb.get_sheet(sx)        # write-only copy   ws.write(row,col,'value')
+    # read-only copy  sh.cell(row,col).value sh.cell_value(row,col)
+    sh = book.sheet_by_index(sx)
 
+    # to write to file  wb.save('filename')
+    wb = copy(book)
+
+    # write-only copy   ws.write(row,col,'value')
+    ws = wb.get_sheet(sx)
 
     # build dictionary of hullserial to row
     hulls = {}
@@ -141,33 +147,34 @@ def fetch_oprs_and_csss(db):
 
     # select all records from the CS table
     sql = "SELECT * FROM wp_nrb_cs_survey ORDER BY id"
-    dris = db.execute(sql)
+    csss = db.execute(sql)
 
     if dump_opr:
         print("OPRS [{}]".format(len(oprs)))
         for opr in oprs:
-            print("  opr  {:14.14}   {:20.20}   {:22.22} {}   {:20.20}   {:25.25} {:30.30}".format(
-                opr['hull_serial_number'],
-                opr['dealership'],
-                opr['model'],
-                opr['date_delivered'],
-                opr['first_name'],
-                opr['last_name'],
-                opr['agency'],
-            ))
-    if dump_dri:
+            print(
+                "  opr  {:14.14}   {:20.20}   {:22.22} {}   "
+                "{:20.20}   {:25.25} {:30.30}".format(
+                    opr['hull_serial_number'],
+                    opr['dealership'],
+                    opr['model'],
+                    opr['date_delivered'],
+                    opr['first_name'],
+                    opr['last_name'],
+                    opr['agency']))
+    if dump_css:
         if dump_opr:
             print("\n\n\n")
-        print("DRIS [{}]".format(len(dris)))
-        for dri in dris:
-            print("  dri  {:14.14}   {:20.20}   {:22.22}   {}".format(
-                dri['hull_serial_number'],
-                dri['dealership'],
-                dri['model'],
-                dri['date_purchased'],
+        print("CSS [{}]".format(len(csss)))
+        for css in csss:
+            print("  css  {:14.14}   {:20.20}   {:22.22}   {}".format(
+                css['hull_serial_number'],
+                css['dealership'],
+                css['model'],
+                css['date_purchased'],
             ))
 
-    return oprs, dris
+    return oprs, csss
 
 
 def process_sheet(data, hulls, col, sh, ws):
@@ -175,78 +182,167 @@ def process_sheet(data, hulls, col, sh, ws):
     For logic see gist:
         https://gist.github.com/northriverboats/bd05796844dee5ecdb493880b5e5e01d
     """
-    font_size_style = xlwt.easyxf('font: name Garmond, bold off, height 240;')
-    date_font_size_style = xlwt.easyxf('font: name Garmond, bold off, height 240;')
+    font_size_style = xlwt.easyxf(
+        'font: name Garmond, bold off, height 240;')
+    date_font_size_style = xlwt.easyxf(
+        'font: name Garmond, bold off, height 240;')
     date_font_size_style.num_format_str = 'mm/dd/yyyy'
     changed = 0
 
-    output = "\n\n---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------\n"
-    output += "| Hull         | Lastname        | Firstname  | Phone                | Mailing                                            | Street                                             | Purchased  |\n"
-    output += "---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------\n"
+    output = (
+        ("", "\n\n\n")[col] +
+        "-----------------------------------------------------------"
+        "---------------------------------------------------------------------"
+        "---------------------------------------------------------------\n"
+        "|" + " " * 83 +
+        ('C S S \'s  U P D A T E D', 'O P R \'s  U P D A T E D')[col] +
+        " " * 83 + '|' +
+        "\n-----------------------------------------------------------"
+        "---------------------------------------------------------------------"
+        "---------------------------------------------------------------\n"
+        "| Hull           | Lastname        | Firstname  "
+        "| Phone                "
+        "| Mailing Address                                    "
+        "| Street Address                                     " +
+        ("| Delivered  |\n", "| Purchased  |\n")[col] +
+        "---------------------------------------------------------------------"
+        "---------------------------------------------------------------------"
+        "-----------------------------------------------------\n")
 
-    pp = pprint.PrettyPrinter(indent=4)
-    # col 0/4 = opr/dri mode
+    # pp = pprint.PrettyPrinter(indent=4)
+    # col 0/4 = opr/css mode
     # opr 0/2 = opr done
     # css 0/1 = css done
-    #               0      1      2      3      4     5       6      7
-    # truth_table = [True, False, False, False, True, False,  True,  False ]  # CSS priority
-    truth_table = [True, True,  False, False, True, False, False, False ]   # OPR priority
+    #               0   1  2  3  4  5  6  7
+    # truth_table = [T, F, F, F, T, F, T, F]  # CSS priority
+
+    # OPR priority
+    truth_table = [True, True,  False, False, True, False, False, False]
 
     for datum in data:
-        rx = hulls.get(datum.get('hull_serial_number')[:3] + datum.get('hull_serial_number')[4:9] + datum.get('hull_serial_number')[10:],0)
-        if (rx):  # rx is row on sheet where datum's hull_serial_number shows up
+        rx = hulls.get(
+            datum.get('hull_serial_number')[:3] +
+            datum.get('hull_serial_number')[4:9] +
+            datum.get('hull_serial_number')[10:], 0)
+        if (rx):  # rx is row on sheet where datum hull_serial_number shows up
             opr_char = sh.cell_value(rx, 19)
             css_char = sh.cell_value(rx, 20)
             opr_flag = (0, 2)[opr_char != '']
             css_flag = (0, 1)[css_char != '']
             flag = (col * 4) + opr_flag + css_flag
-            debug(3, '  Processing row: {:05d}  hull: {}  flag: {:03b}'.format(rx, datum.get('hull_serial_number'), flag))
+            debug(3,
+                  '  Processing row: {:05d}  hull: {}  flag: {:03b}'.format(
+                      rx, datum.get('hull_serial_number'), flag))
             if flag == 6:
                 changed += 1
                 ws.write(rx, 19 + col, 'X', font_size_style)
             if truth_table[flag]:
                 changed += 1
-                homephone = str(datum.get('phone_home','')).upper()
-                workphone = str(datum.get('phone_work','')).upper()
-                if (homephone == 'NA' or homephone == 'N/A' or homephone == 'NONE'):
+                homephone = str(datum.get('phone_home', '')).upper()
+                workphone = str(datum.get('phone_work', '')).upper()
+                if (homephone == 'NA' or
+                        homephone == 'N/A' or
+                        homephone == 'NONE'):
                     homephone = ''
-                if (workphone == 'NA' or workphone == 'N/A' or workphone == 'NONE'):
+                if (workphone == 'NA' or
+                        workphone == 'N/A' or
+                        workphone == 'NONE'):
                     workphone = ''
 
-                ws.write(rx,  1, titlecase(datum.get('last_name','')), font_size_style)
-                ws.write(rx,  2, titlecase(datum.get('first_name','')), font_size_style)
-                ws.write(rx,  3, (workphone, homephone)[bool(homephone)], font_size_style)
-                ws.write(rx,  4, titlecase(datum.get('mailing_address','')), font_size_style)
-                ws.write(rx,  5, titlecase(datum.get('mailing_city','')), font_size_style)
-                ws.write(rx,  6, states.get(datum.get('mailing_state',''),''), font_size_style)
-                ws.write(rx,  7, datum.get('mailing_zip','').upper(), font_size_style)
+                ws.write(rx,
+                         1,
+                         titlecase(datum.get('last_name', '')),
+                         font_size_style)
+                ws.write(rx,
+                         2,
+                         titlecase(datum.get('first_name', '')),
+                         font_size_style)
+                ws.write(rx,
+                         3,
+                         (workphone, homephone)[bool(homephone)],
+                         font_size_style)
+                ws.write(rx,
+                         4,
+                         titlecase(datum.get('mailing_address', '')),
+                         font_size_style)
+                ws.write(rx,
+                         5,
+                         titlecase(datum.get('mailing_city', '')),
+                         font_size_style)
+                ws.write(rx,
+                         6,
+                         states.get(datum.get('mailing_state', ''), ''),
+                         font_size_style)
+                ws.write(rx,
+                         7,
+                         datum.get('mailing_zip', '').upper(),
+                         font_size_style)
                 if col == 0:
-                    ws.write(rx,  8, titlecase(datum.get('street_address','')), font_size_style)
-                    ws.write(rx,  9, titlecase(datum.get('street_city','')), font_size_style)
-                    ws.write(rx, 10, states.get(datum.get('street_state',''),''), font_size_style)
-                    ws.write(rx, 11, datum.get('street_zip','').upper(), font_size_style)
-                ws.write(rx, 12, datum.get('email_address', datum.get('email', '')), font_size_style)
-                ws.write(rx, 13, datum.get('date_delivered',''), date_font_size_style )
-                ws.write(rx, 19 + col, 'X', font_size_style)
+                    ws.write(rx,
+                             8,
+                             titlecase(datum.get('street_address', '')),
+                             font_size_style)
+                    ws.write(rx,
+                             9,
+                             titlecase(datum.get('street_city', '')),
+                             font_size_style)
+                    ws.write(rx,
+                             10,
+                             states.get(datum.get('street_state', ''), ''),
+                             font_size_style)
+                    ws.write(rx,
+                             11,
+                             datum.get('street_zip', '').upper(),
+                             font_size_style)
+                ws.write(rx,
+                         12,
+                         datum.get('email_address', datum.get('email', '')),
+                         font_size_style)
+                ws.write(rx,
+                         13,
+                         datum.get('date_delivered', ''),
+                         date_font_size_style)
+                ws.write(rx,
+                         19 + col,
+                         'X',
+                         font_size_style)
 
-                output1 = "| %-12s | %-15s | %-10s | %-20s | %-50s | %-50s | %-10s | %s\n" % (
-                    datum.get('hull_serial_number',''),
-                    titlecase(datum.get('last_name',''))[:15],
-                    titlecase(datum.get('first_name',''))[:10],
-                    (workphone, homephone)[bool(homephone)][:20],
+                mailing_address = (
                     titlecase(
-                        datum.get('mailing_address','') + ', ' + datum.get('mailing_city','')
-                    ) + ', ' + states.get(datum.get('mailing_state',''),'') + ', ' + datum.get('mailing_zip', '').upper(),
+                        datum.get('mailing_address', '') + ', ' +
+                        datum.get('mailing_city', '')) + ', ' +
+                    states.get(datum.get('mailing_state', ''), '') + ', ' +
+                    datum.get('mailing_zip', '').upper())
+                if len(mailing_address) == 6:
+                    mailing_address = ''
+
+                street_address = (
                     titlecase(
-                        datum.get('street_address','') + ', ' + datum.get('street_city','')
-                    ) + ', ' + states.get(datum.get('street_state',''),'') + ', ' + datum.get('street_zip', '').upper(),
-                    datum.get('date_delivered','01/01/01'), rx
-                )
-                debug(1, output1.replace('\n',''))
+                        datum.get('street_address', '') + ', ' +
+                        datum.get('street_city', '')) + ', ' +
+                    states.get(datum.get('street_state', ''), '') + ', ' +
+                    datum.get('street_zip', '').upper())
+                if len(street_address) == 6:
+                    street_address = ''
+
+                if col == 0:
+                    date_thing = datum.get('date_delivered', '01/01/01')
+                else:
+                    date_thing = datum.get('date_purchased', '01/01/01')
+
+                output1 = (
+                    "| %-12s | %-15s | %-10s | %-20s |"
+                    " %-50s | %-50s | %-10s | %s\n" % (
+                        datum.get('hull_serial_number', ''),
+                        titlecase(datum.get('last_name', ''))[:15],
+                        titlecase(datum.get('first_name', ''))[:10],
+                        (workphone, homephone)[bool(homephone)][:20],
+                        mailing_address, street_address, date_thing, rx))
+                debug(2, output1.replace('\n', ''))
                 output += output1
 
-
     return output, changed
+
 
 def mail_results(subject, body):
     mFrom = os.getenv('MAIL_FROM')
@@ -254,8 +350,8 @@ def mail_results(subject, body):
     m = Email(os.getenv('MAIL_SERVER'))
     m.setFrom(mFrom)
     for email in mTo.split(','):
-      m.addRecipient(email)
-    # m.addCC(os.getenv('MAIL_FROM'))
+        m.addRecipient(email)
+        # m.addCC(os.getenv('MAIL_FROM'))
 
     m.setSubject(subject)
     m.setTextBody("You should not see this text in a MIME aware reader")
@@ -263,20 +359,23 @@ def mail_results(subject, body):
     m.send()
 
 
-
 @click.command()
-@click.option('--verbose', '-v', default=0, type=int, help='verbosity level 0-4')
-@click.option('--nosave', is_flag=True, help='do not save spreadsheet')
-@click.option('--dumpopr', is_flag=True, help='dump opr table')
-@click.option('--dumpdri', is_flag=True, help='dump dri table')
-def main(nosave, verbose, dumpopr, dumpdri):
+@click.option(
+    '--verbose', '-v', default=0, type=int, help='verbosity level 0-4')
+@click.option(
+    '--nosave', is_flag=True, help='do not save spreadsheet')
+@click.option(
+    '--dumpopr', is_flag=True, help='dump opr table')
+@click.option(
+    '--dumpcss', is_flag=True, help='dump css table')
+def main(nosave, verbose, dumpopr, dumpcss):
     global xlsfile
     global verbosity
     global dump_opr
-    global dump_dri
+    global dump_css
     verbosity = verbose
     dump_opr = dumpopr
-    dump_dri = dumpdri
+    dump_css = dumpcss
 
     # set python environment
     if getattr(sys, 'frozen', False):
@@ -286,7 +385,7 @@ def main(nosave, verbose, dumpopr, dumpdri):
         bundle_dir = os.path.dirname(os.path.abspath(__file__))
 
     # load environmental variables
-    load_dotenv(bundle_dir + "/.env-local")
+    load_dotenv(bundle_dir + '/.env')
 
     xlsfile = os.getenv('XLSFILE')
 
@@ -295,36 +394,34 @@ def main(nosave, verbose, dumpopr, dumpdri):
         db = TunnelSQL(silent, cursor='DictCursor')
         oprs, csss = fetch_oprs_and_csss(db)
         book, hulls, sh, wb, ws = read_workbook()
-        debug(3, 'CSS ===================================================')
         output_2, changed_2 = process_sheet(csss, hulls, 1, sh, ws)
-        debug(3, "changed: {}\n".format(changed_2))
-        debug(3, 'OPR ===================================================')
+        debug(3, "CSS's changed: {}\n".format(changed_2))
         output_1, changed_1 = process_sheet(oprs, hulls, 0, sh, ws)
-        debug(3, "changed: {}\n".format(changed_1))
-        output = "---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------\n"
-        output += "| Hull         | Lastname        | Firstname  | Phone                | Mailing                                            | Street                                             | Delivered  |\n"
-        output += "---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------\n"
+        debug(3, "OPR's changed: {}\n".format(changed_1))
         output = output_1 + output_2
         changed = changed_1 + changed_2
 
         if (changed and not nosave):
             wb.save(xlsfile)
-            mail_results('OPR to Warranty Spreadsheet Update', '<pre>' + output + '</pre>')
-            debug(3, output)
+            mail_results(
+                'OPR to Warranty Spreadsheet Update',
+                '<pre>' + output + '</pre>')
+            debug(1, output)
         else:
-            debug(3, 'No changes File Not Saved')
+            debug(1, 'No changes File Not Saved')
     except OSError:
         mail_results(
             'OPR to Warranty Spreadsheet is open',
-            'OPR to Warranty Spreadsheet is open, spreadsheet can not be updated'
-        )
+            'OPR to Warranty Spreadsheet is open, '
+            'spreadsheet can not be updated')
     except Exception as e:
         mail_results(
             'OPR to Warranty Spreadsheet Processing Error',
-            '<p>Spreadsheet can not be updated due to script error:<br />\n' + str(e) + '</p>'
-        )
+            '<p>Spreadsheet can not be updated due to script error:<br />\n' +
+            str(e) + '</p>')
     finally:
         db.close()
+
 
 if __name__ == "__main__":
     main()
