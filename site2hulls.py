@@ -100,6 +100,22 @@ def debug(level, text):
     if verbosity > (level - 1):
         print(text)
 
+def resolve_flag(env_var, default):
+    """convert enviromntal variable to True False
+       return default value if no string"""
+    if os.getenv(env_var):
+        return [False, True][os.getenv(env_var) != ""]
+    return default
+
+def resolve_text(env_var, default):
+    """convert enviromntal variable to text string
+       return default value if no string"""
+    if os.getenv(env_var):
+        return os.getenv(env_var)
+    return default
+
+def resolve_int(env_var, default):
+    return int(resolve_text(env_var, default))
 
 def read_workbook():
     # Read boat/dealer/model from spreadsheet
@@ -372,9 +388,6 @@ def main(nosave, verbose, dumpopr, dumpcss):
     global verbosity
     global dump_opr
     global dump_css
-    verbosity = verbose
-    dump_opr = dumpopr
-    dump_css = dumpcss
 
     # set python environment
     if getattr(sys, 'frozen', False):
@@ -386,7 +399,23 @@ def main(nosave, verbose, dumpopr, dumpcss):
     # load environmental variables
     load_dotenv(bundle_dir + '/.env')
 
+    if os.getenv('HELP'):
+      with click.get_current_context() as ctx:
+        click.echo(ctx.get_help())
+        ctx.exit()
+
+    verbosity = resolve_int('VERBOSE', verbose)
+    no_save = resolve_flag('NOSAVE', nosave)
+    dump_opr = resolve_flag('DUMPOPR', dumpopr)
+    dump_css = resolve_flag('DUMPCSS', dumpcss)
+
     xlsfile = os.getenv('XLSFILE')
+
+    if verbosity > 0:
+        try:
+            print(f"{xlsfile} is {os.path.getsize(xlsfile)} bytes in size")
+        except OSError as e:
+            print(f"{xlsfile} is not found")
 
     try:
         silent = verbosity < 3
@@ -400,7 +429,7 @@ def main(nosave, verbose, dumpopr, dumpcss):
         output = output_1 + output_2
         changed = changed_1 + changed_2
 
-        if (changed and not nosave):
+        if (changed and not no_save):
             wb.save(xlsfile)
             mail_results(
                 'OPR to Warranty Spreadsheet Update',
