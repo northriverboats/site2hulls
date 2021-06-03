@@ -375,15 +375,15 @@ def mail_results(subject, body):
 
 
 @click.command()
+@click.option('--debug', '-d', is_flag=True, help='show debug verbosity/do not'
+              'save verbosity')
 @click.option(
     '--verbose', '-v', default=0, type=int, help='verbosity level 0-4')
-@click.option(
-    '--nosave', is_flag=True, help='do not save spreadsheet')
 @click.option(
     '--dumpopr', is_flag=True, help='dump opr table')
 @click.option(
     '--dumpcss', is_flag=True, help='dump css table')
-def main(nosave, verbose, dumpopr, dumpcss):
+def main(debug, verbose, dumpopr, dumpcss):
     global xlsfile
     global verbosity
     global dump_opr
@@ -405,7 +405,7 @@ def main(nosave, verbose, dumpopr, dumpcss):
         ctx.exit()
 
     verbosity = resolve_int('VERBOSE', verbose)
-    no_save = resolve_flag('NOSAVE', nosave)
+    no_save = resolve_flag('DEBUG', debug)
     dump_opr = resolve_flag('DUMPOPR', dumpopr)
     dump_css = resolve_flag('DUMPCSS', dumpcss)
 
