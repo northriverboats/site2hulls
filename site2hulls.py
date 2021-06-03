@@ -88,7 +88,7 @@ states = {
 }
 
 
-def debug(level, text):
+def dbg(level, text):
     """
     Levels
     0 = no output
@@ -245,7 +245,7 @@ def process_sheet(data, hulls, col, sh, ws):
             opr_flag = (0, 2)[opr_char != '']
             css_flag = (0, 1)[css_char != '']
             flag = (col * 4) + opr_flag + css_flag
-            debug(3,
+            dbg(3,
                   '  Processing row: {:05d}  hull: {}  flag: {:03b}'.format(
                       rx, datum.get('hull_serial_number'), flag))
             if flag == 6:
@@ -353,7 +353,7 @@ def process_sheet(data, hulls, col, sh, ws):
                         titlecase(datum.get('first_name', ''))[:10],
                         (workphone, homephone)[bool(homephone)][:20],
                         mailing_address, street_address, date_thing, rx))
-                debug(2, output1.replace('\n', ''))
+                dbg(2, output1.replace('\n', ''))
                 output += output1
 
     return output, changed
@@ -423,9 +423,9 @@ def main(debug, verbose, dumpopr, dumpcss):
         oprs, csss = fetch_oprs_and_csss(db)
         book, hulls, sh, wb, ws = read_workbook()
         output_2, changed_2 = process_sheet(csss, hulls, 1, sh, ws)
-        debug(3, "CSS's changed: {}\n".format(changed_2))
+        dbg(3, "CSS's changed: {}\n".format(changed_2))
         output_1, changed_1 = process_sheet(oprs, hulls, 0, sh, ws)
-        debug(3, "OPR's changed: {}\n".format(changed_1))
+        dbg(3, "OPR's changed: {}\n".format(changed_1))
         output = output_1 + output_2
         changed = changed_1 + changed_2
 
@@ -449,7 +449,7 @@ def main(debug, verbose, dumpopr, dumpcss):
             str(e) + '</p>')
     finally:
         db.close()
-
+    sys.exit(0)
 
 if __name__ == "__main__":
     main()
