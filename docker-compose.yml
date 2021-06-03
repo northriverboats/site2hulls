@@ -3,7 +3,13 @@ version: "2"
 services:
   python-app:
     image: nrb-python
+    environment:
+      - HELP=${HELP}
+      - VERBOSE=${VERBOSE}
+      - NOSAVE=${NOSAVE}
+      - DUMPOPR=${DUMPOPR}
+      - DUMPCSS=${DUMPCSS}
     volumes:
       - ./:/app
-      - /samba/shares/common/Warranty Registrations/:/output
+      - /samba/shares/recreation/Warranty Registrations/:/output
     entrypoint: [python, site2hulls.py]
