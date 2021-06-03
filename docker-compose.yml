@@ -4,11 +4,11 @@ services:
   python-app:
     image: nrb-python
     environment:
-      - HELP=${HELP}
-      - VERBOSE=${VERBOSE}
-      - NOSAVE=${NOSAVE}
-      - DUMPOPR=${DUMPOPR}
-      - DUMPCSS=${DUMPCSS}
+      - HELP=${HELP}        # flag  print help
+      - VERBOSE=${VERBOSE}  # int   set verbosity level
+      - DEBUG=${DEBUG}      # flag  do not save data/dry run
+      - DUMPOPR=${DUMPOPR}  # flag  dump list of OPRs
+      - DUMPCSS=${DUMPCSS}  # flag  dump list o CSSs
     volumes:
       - ./:/app
       - /samba/shares/recreation/Warranty Registrations/:/output
