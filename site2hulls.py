@@ -363,10 +363,11 @@ def mail_results(subject, body):
     mFrom = os.getenv('MAIL_FROM')
     mTo = os.getenv('MAIL_TO')
     m = Email(os.getenv('MAIL_SERVER'))
+    # m.addRecipient(os.getenv('MAIL_FROM'))
     m.setFrom(mFrom)
     for email in mTo.split(','):
         m.addRecipient(email)
-        # m.addCC(os.getenv('MAIL_FROM'))
+        m.addCC(os.getenv('MAIL_FROM'))
 
     m.setSubject(subject)
     m.setTextBody("You should not see this text in a MIME aware reader")
@@ -441,12 +442,14 @@ def main(debug, verbose, dumpopr, dumpcss):
         mail_results(
             'OPR to Warranty Spreadsheet is open',
             'OPR to Warranty Spreadsheet is open, '
-            'spreadsheet can not be updated')
+            'spreadsheet can not be updated'
+            "<br /><br /><pre>" + traceback.format_exc() + "</pre>")
     except Exception as e:
         mail_results(
             'OPR to Warranty Spreadsheet Processing Error',
             '<p>Spreadsheet can not be updated due to script error:<br />\n' +
-            str(e) + '</p>')
+            str(e) + '</p>'
+            "<br /><br /><pre>" + traceback.format_exc() + "</pre>")
     finally:
         db.close()
     sys.exit(0)
