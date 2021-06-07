@@ -1,15 +1,16 @@
 #!/usr/bin/env python3
-# import pprint
-from xlrd import open_workbook
-import xlwt
-import sys
-import os
 import click
-from xlutils.copy import copy
-from titlecase import titlecase
+from dotenv import load_dotenv
 from emailer.emailer import Email
 from mysql_tunnel.mysql_tunnel import TunnelSQL
-from dotenv import load_dotenv
+# import pprint
+import os
+import sys
+from titlecase import titlecase
+import traceback
+from xlrd import open_workbook
+import xlwt
+from xlutils.copy import copy
 
 xlsfile = ''
 dump_opr = False
