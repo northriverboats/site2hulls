@@ -364,11 +364,11 @@ def mail_results(subject, body):
     mFrom = os.getenv('MAIL_FROM')
     mTo = os.getenv('MAIL_TO')
     m = Email(os.getenv('MAIL_SERVER'))
-    # m.addRecipient(os.getenv('MAIL_FROM'))
     m.setFrom(mFrom)
     for email in mTo.split(','):
         m.addRecipient(email)
         m.addCC(os.getenv('MAIL_FROM'))
+    # m.addRecipient(os.getenv('MAIL_FROM'))
 
     m.setSubject(subject)
     m.setTextBody("You should not see this text in a MIME aware reader")
@@ -436,9 +436,9 @@ def main(debug, verbose, dumpopr, dumpcss):
             mail_results(
                 'OPR to Warranty Spreadsheet Update',
                 '<pre>' + output + '</pre>')
-            debug(1, output)
+            dbg(1, output)
         else:
-            debug(1, 'No changes File Not Saved')
+            dbg(1, 'No changes File Not Saved')
     except OSError:
         mail_results(
             'OPR to Warranty Spreadsheet is open',
