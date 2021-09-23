@@ -4,6 +4,7 @@ dist/*
 build/*
 __pycache__/*
 .env
+.envrc
 .env-local
 *.swp
 
