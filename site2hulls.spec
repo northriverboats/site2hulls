@@ -4,7 +4,7 @@
 block_cipher = None
 
 
-a = Analysis(['hulls2site.py'],
+a = Analysis(['site2hulls.py'],
              pathex=['/home/fwarren/builds/site2hulls'],
              binaries=[],
              datas=[
@@ -28,7 +28,7 @@ exe = EXE(pyz,
           a.zipfiles,
           a.datas,  
           [],
-          name='hulls2site',
+          name='site2hulls',
           debug=False,
           bootloader_ignore_signals=False,
           strip=False,
