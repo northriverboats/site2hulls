@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 import click
 from dotenv import load_dotenv
-from emailer.emailer import Email
+from emailer.emailer import mail_results
 from mysql_tunnel.mysql_tunnel import TunnelSQL
 # import pprint
 import os
@@ -358,23 +358,6 @@ def process_sheet(data, hulls, col, sh, ws):
                 output += output1
 
     return output, changed
-
-
-def mail_results(subject, body):
-    mFrom = os.getenv('MAIL_FROM')
-    mTo = os.getenv('MAIL_TO')
-    m = Email(os.getenv('MAIL_SERVER'))
-    m.setFrom(mFrom)
-    for email in mTo.split(','):
-        m.addRecipient(email)
-        m.addCC(os.getenv('MAIL_FROM'))
-    # m.addRecipient(os.getenv('MAIL_FROM'))
-
-    m.setSubject(subject)
-    m.setTextBody("You should not see this text in a MIME aware reader")
-    m.setHtmlBody(body)
-    m.send()
-
 
 @click.command()
 @click.option('--debug', '-d', is_flag=True, help='show debug verbosity/do not'
