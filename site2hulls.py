@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 import click
 from dotenv import load_dotenv
-from emailer.emailer import mail_results
+from emailer import mail_results
 from mysql_tunnel.mysql_tunnel import TunnelSQL
 # import pprint
 import os

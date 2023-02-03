@@ -1,6 +1,7 @@
 altgraph==0.17.2
 bgtunnel==0.4.1
 click==8.0.1
+emailer @ git+https://github.com/northriverboats/emailer.git
 mysqlclient==2.0.3
 pkg_resources==0.0.0
 pyinstaller==4.5.1
