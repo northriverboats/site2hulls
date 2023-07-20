@@ -2,6 +2,7 @@ altgraph==0.17.2
 bgtunnel==0.4.1
 click==8.0.1
 Envelopes==0.4
+mysql_tunnel @ git+https://github.com/northriverboats/mysql-tunnel.git
 mysqlclient==2.1.1
 pyinstaller==4.5.1
 pyinstaller-hooks-contrib==2021.3

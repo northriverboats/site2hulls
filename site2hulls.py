@@ -134,7 +134,7 @@ def split_address(email_address):
         return (address[1][:-1], address[0].strip())
     return (address[1][:-1], '')
 
-def mail_results(subject, text_body='', html_body=''):
+def mail_results(subject, body, attachment=''):
     """ Send emial with html formatted body and parameters from env"""
     envelope = Envelope(
         from_addr=split_address(os.environ.get('MAIL_FROM')),
@@ -159,6 +159,9 @@ def mail_results(subject, text_body='', html_body=''):
     if bccs[0]:
         for bcc in bccs:
             envelope.add_bcc_addr(bcc)
+
+    if attachment:
+        envelope.add_attachment(attachment)
 
     # send the envelope using an ad-hoc connection...
     try:
